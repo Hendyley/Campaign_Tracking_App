@@ -6,6 +6,25 @@
 # dotenv files
 .env
 
+*.env.local
+appsettings.*.local.json
+secrets.json
+
+# .NET
+bin/
+obj/
+.vs/
+
+# Angular / Node
+node_modules/
+WebFrontend/dist/
+WebFrontend/.angular/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+
 # User-specific files
 *.rsuser
 *.suo
