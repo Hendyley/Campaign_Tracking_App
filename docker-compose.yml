@@ -30,5 +30,14 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
 
+  webfrontend:
+    container_name: webfrontend
+    build: ./WebFrontend
+    restart: unless-stopped
+    depends_on:
+      - webapi
+    ports:
+      - "${NODE_PORT:-4200}:80"
+
 volumes:
   mssql_data:

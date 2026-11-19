@@ -20,6 +20,13 @@ dotnet tool update --global dotnet-ef
 dotnet ef migrations add InitialCreate  
 dotnet ef database update   => Create DB if Missing
 
+Angular CLI
+npm install -g @angular/cli
+ng version
+ng new WebFrontend --routing --style=css --skip-git
+ng generate environments
+ng generate component campaign-form
+ng generate component campaign-detail
 
 https://localhost:7194/swagger
 

@@ -1,0 +1,30 @@
+<h1>New campaign</h1>
+
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <label>
+    Name
+    <input formControlName="name" maxlength="200" />
+  </label>
+  @if (form.controls.name.touched && form.controls.name.invalid) {
+    <p class="err">Name is required (max 200 characters, no angle brackets).</p>
+  }
+
+  <label>
+    Start date
+    <input type="date" formControlName="startDate" />
+  </label>
+
+  <label>
+    End date
+    <input type="date" formControlName="endDate" />
+  </label>
+  @if (form.touched && form.errors?.['dateRange']) {
+    <p class="err">End date must be after start date.</p>
+  }
+
+  @if (error()) {
+    <p class="err">{{ error() }}</p>
+  }
+
+  <button type="submit" [disabled]="saving()">Create campaign</button>
+</form>

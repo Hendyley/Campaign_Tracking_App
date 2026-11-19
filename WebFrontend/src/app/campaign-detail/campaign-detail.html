@@ -1,0 +1,24 @@
+@switch (state()) {
+  @case ('loading') { <p>Loading...</p> }
+  @case ('notfound') { <p>Campaign not found.</p> }
+  @case ('error') { <p class="err">Could not load the campaign.</p> }
+  @case ('ok') {
+    @if (campaign(); as c) {
+      <h1>{{ c.name }}</h1>
+      <p>{{ c.startDate | date: 'mediumDate' }} to {{ c.endDate | date: 'mediumDate' }}</p>
+
+      <h2>Events</h2>
+      @if (c.events.length === 0) {
+        <p>No events yet.</p>
+      } @else {
+        <ul>
+          @for (e of c.events; track e.id) {
+            <li>{{ e.eventType }} at {{ e.timestamp | date: 'medium' }}</li>
+          }
+        </ul>
+      }
+    }
+  }
+}
+
+<a routerLink="/campaigns/new">Create another campaign</a>
