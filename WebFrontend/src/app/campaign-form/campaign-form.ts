@@ -1,8 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, TemplateRef } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CampaignService } from '../services/service';
+import { NgbInputDatepicker, NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { ModalDismissReasons, NgbModal } from '@ng-bootstrap/ng-bootstrap/modal';
 
 // yyyy-MM-dd strings compare correctly as text
 function dateRange(group: AbstractControl): ValidationErrors | null {
@@ -13,7 +15,7 @@ function dateRange(group: AbstractControl): ValidationErrors | null {
 
 @Component({
   selector: 'app-campaign-form',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, NgbInputDatepicker],
   templateUrl: './campaign-form.html',
   styleUrl: './campaign-form.css',
 })
@@ -21,6 +23,32 @@ export class CampaignForm {
   private fb = inject(FormBuilder);
   private api = inject(CampaignService);
   private router = inject(Router);
+  
+  private modalService = inject(NgbModal);
+  readonly closeResult = signal('');
+
+  open(content: TemplateRef<any>){
+    this.modalService.open(content, {ariaLabelledBy: 'modal-basic-title'}).result.then(
+      (result) => {
+        this.closeResult.set(`Closed with: ${result}`);
+      },
+      (reason) => {
+        this.closeResult.set(`Dismissed ${this.getDismissReason(reason)}`);
+      }
+    )
+  }
+
+  private getDismissReason(reason: any): string {
+      switch (reason) {
+        case ModalDismissReasons.ESC:
+          return 'by pressing ESC';
+        case ModalDismissReasons.BACKDROP_CLICK:
+          return 'by clicking on a backdrop';
+        default:
+          return `with: ${reason}`;
+      }
+    }
+
 
   saving = signal(false);
   error = signal<string | null>(null);
