@@ -28,6 +28,10 @@ ng generate environments
 ng generate component campaign-form
 ng generate component campaign-detail
 
+
+npm install
+ng serve
+
 https://localhost:7194/swagger
 
 

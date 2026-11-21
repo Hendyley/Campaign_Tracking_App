@@ -9,4 +9,5 @@ RUN npm run build
 # RUN ls -la /app/dist /app/dist/*
 # Stage 2: serve static files (no Node)
 FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/WebFrontend/browser /usr/share/nginx/html

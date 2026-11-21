@@ -1,24 +1,67 @@
-@switch (state()) {
-  @case ('loading') { <p>Loading...</p> }
-  @case ('notfound') { <p>Campaign not found.</p> }
-  @case ('error') { <p class="err">Could not load the campaign.</p> }
-  @case ('ok') {
-    @if (campaign(); as c) {
-      <h1>{{ c.name }}</h1>
-      <p>{{ c.startDate | date: 'mediumDate' }} to {{ c.endDate | date: 'mediumDate' }}</p>
+<header>
+  <img src="/assets/campaign-search.png" alt="Campaign" width="150" height="150" />
+  <h1>View Campaign</h1>
+</header>
 
-      <h2>Events</h2>
-      @if (c.events.length === 0) {
-        <p>No events yet.</p>
-      } @else {
-        <ul>
-          @for (e of c.events; track e.id) {
-            <li>{{ e.eventType }} at {{ e.timestamp | date: 'medium' }}</li>
+<div class="ViewCampaignForm">
+  @switch (state()) {
+    @case ('loading') { <p>Loading...</p> }
+    @case ('notfound') { <p>Campaign not found.</p> }
+    @case ('error') { <p class="err">Could not load the campaign.</p> }
+    @case ('ok') {
+      @if (campaign(); as c) {
+
+        <table class="table table-striped">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Campaign name</th>
+            <th scope="col">Start Date</th>
+            <th scope="col">End Date</th>
+          </tr>
+        </thead>
+        <tbody>
+            <tr>
+              <th scope="row">{{ c.id }}</th>
+              <td>{{ c.name }}</td>
+              <td>{{ c.startDate | date: 'mediumDate' }}</td>
+              <td>{{ c.endDate | date: 'mediumDate' }}</td>
+            </tr>
+          
+        </tbody>
+      </table>
+      }
+      @else if (campaigns(); as cs) {
+        <table class="table table-striped">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Campaign name</th>
+            <th scope="col">Start Date</th>
+            <th scope="col">End Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of cs; track c.id) {
+            <tr>
+              <th scope="row">{{ c.id }}</th>
+              <td> <a [routerLink]="['/campaigns', c.id]">{{ c.name }}</a></td>
+              <td>{{ c.startDate | date: 'mediumDate' }}</td>
+              <td>{{ c.endDate | date: 'mediumDate' }}</td>
+            </tr>
           }
-        </ul>
+        </tbody>
+      </table>
       }
     }
   }
-}
 
-<a routerLink="/campaigns/new">Create another campaign</a>
+  <div class="button-group">
+    <a id="createCampaignLink" class="btn btn-primary" routerLink="/campaigns/new">
+      Create another campaign
+    </a>
+    <a id="viewAllCampaign" class="btn btn-primary" routerLink="/campaigns/all">
+      View all campaigns
+    </a>
+  </div>
+</div>

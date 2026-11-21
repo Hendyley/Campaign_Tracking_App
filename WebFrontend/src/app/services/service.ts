@@ -13,6 +13,10 @@ export class CampaignService {
     return this.http.get<Campaign>(`${this.base}/${id}`);
   }
 
+  getAll(): Observable<Campaign[]> {
+    return this.http.get<Campaign[]>(this.base);
+  }
+
   create(body: CreateCampaign): Observable<Campaign> {
     return this.http.post<Campaign>(this.base, body);
   }

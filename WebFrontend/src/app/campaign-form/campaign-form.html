@@ -1,21 +1,23 @@
-<h1>Campaign</h1>
+
+<header>
+  <img src="/assets/campaign.png" alt="Campaign" width="150" height="150" />
+  <h1>Add New Campaign  </h1>
+</header>
 
 
-<div>
-  <p>Hi</p>
-  <ng-template #content let-modal>
-	<div class="modal-header">
-		<h4 class="modal-title" id="modal-basic-title">Profile update</h4>
-		<button type="button" class="btn-close" aria-label="Close" (click)="modal.dismiss('Cross click')"></button>
-	</div>
-	<div class="modal-body">
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <label>Event Name : <input formControlName="name" maxlength="200" /></label>
+<div class="AddCampaignForm">
+  <form [formGroup]="form" (ngSubmit)="addEvent()"  class="container" style="max-width: 480px">
+    
+    
+    <div class="mb-3">
+      <label for="name" class="form-label">Campaign name</label>
+      <input id="name" class="form-control" formControlName="name" maxlength="200" />
       @if (form.controls.name.touched && form.controls.name.invalid) {
-        <p class="err">Name is required (max 200 characters, no angle brackets).</p>
+        <div class="text-danger">Name is required (max 200 characters, no angle brackets).</div>
       }
+    </div>
 
-      <div class="mb-3">
+    <div class="mb-3">
       <label for="startDate" class="form-label">Start date</label>
       <div class="input-group">
         <input
@@ -54,18 +56,22 @@
       }
     </div>
 
-      
-    </form>
-	</div>
-	<div class="modal-footer">
-		<button type="button" class="btn btn-outline-secondary" (click)="saving()">Create campaign</button>
-	</div>
-</ng-template>
+    @if (error()) {
+      <div class="alert alert-danger">{{ error() }}</div>
+    }
 
-  <button class="btn btn-lg btn-outline-primary" (click)="open(content)">Add Event</button>
-  <hr />
+    
+    
+    <div class="button-group">
+      <button id="addCampaignButton" type="submit" class="btn btn-primary" [disabled]="saving()">
+        {{ saving() ? 'Saving...' : 'Add campaign' }}
+      </button>
+      <a id="viewAllCampaign" class="btn btn-primary" routerLink="/campaigns/all">
+        View all campaigns
+      </a>
+    </div>
 
-<pre>{{ closeResult() }}</pre>
-
+  </form>
+  
 
 </div>
