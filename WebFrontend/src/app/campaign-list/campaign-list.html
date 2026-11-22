@@ -1,0 +1,59 @@
+<header>
+  <img src="/assets/campaign.png" alt="Campaign" width="150" height="150" />
+  <h1>Campaigns</h1>
+</header>
+
+<div class="container">
+  @switch (state()) {
+    @case ('loading') { <p>Loading...</p> }
+    @case ('error') { <p class="text-danger">Could not load the campaigns.</p> }
+    @case ('ok') {
+      @if (actionError()) {
+        <div class="alert alert-danger">{{ actionError() }}</div>
+      }
+
+      @if (campaigns().length === 0) {
+        <p>No campaigns yet.</p>
+      } @else {
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Campaign name</th>
+              <th scope="col">Start date</th>
+              <th scope="col">End date</th>
+              <th scope="col">Events</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of campaigns(); track c.id) {
+              <tr>
+                <th scope="row">{{ c.id }}</th>
+                <td><a [routerLink]="['/campaigns', c.id]">{{ c.name }}</a></td>
+                <td>{{ c.startDate | date: 'mediumDate' }}</td>
+                <td>{{ c.endDate | date: 'mediumDate' }}</td>
+                <td>{{ c.eventCount }}</td>
+                <td>
+                  <button class="btn btn-outline-danger btn-sm" type="button" (click)="remove(c)">Delete</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <nav class="d-flex align-items-center gap-3 my-3" aria-label="Campaign pages">
+          <button class="btn btn-outline-secondary" type="button"
+                  [disabled]="page() === 1" (click)="loadPage(page() - 1)">Previous</button>
+          <span>Page {{ page() }}</span>
+          <button class="btn btn-outline-secondary" type="button"
+                  [disabled]="!hasNext()" (click)="loadPage(page() + 1)">Next</button>
+        </nav>
+      }
+    }
+  }
+
+  <div class="button-group mt-3">
+    <a class="btn btn-primary" routerLink="/campaigns/new">Create a campaign</a>
+  </div>
+</div>

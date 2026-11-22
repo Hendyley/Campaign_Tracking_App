@@ -1,14 +1,10 @@
-
 <header>
   <img src="/assets/campaign.png" alt="Campaign" width="150" height="150" />
-  <h1>Add New Campaign  </h1>
+  <h1>Add New Campaign</h1>
 </header>
 
-
 <div class="AddCampaignForm">
-  <form [formGroup]="form" (ngSubmit)="addEvent()"  class="container" style="max-width: 480px">
-    
-    
+  <form [formGroup]="form" (ngSubmit)="submit()" class="container" style="max-width: 520px">
     <div class="mb-3">
       <label for="name" class="form-label">Campaign name</label>
       <input id="name" class="form-control" formControlName="name" maxlength="200" />
@@ -28,7 +24,9 @@
           #sd="ngbDatepicker"
           formControlName="startDate"
         />
-        <button class="btn btn-outline-secondary bi bi-calendar3" (click)="sd.toggle()" type="button" aria-label="Pick start date"></button>
+        <button class="btn btn-outline-secondary" (click)="sd.toggle()" type="button" aria-label="Pick start date">
+          Pick
+        </button>
       </div>
       @if (form.controls.startDate.touched && form.controls.startDate.invalid) {
         <div class="text-danger">Start date is required.</div>
@@ -46,7 +44,9 @@
           #ed="ngbDatepicker"
           formControlName="endDate"
         />
-        <button class="btn btn-outline-secondary bi bi-calendar3" (click)="ed.toggle()" type="button" aria-label="Pick end date"></button>
+        <button class="btn btn-outline-secondary" (click)="ed.toggle()" type="button" aria-label="Pick end date">
+          Pick
+        </button>
       </div>
       @if (form.controls.endDate.touched && form.controls.endDate.invalid) {
         <div class="text-danger">End date is required.</div>
@@ -56,12 +56,91 @@
       }
     </div>
 
+    <fieldset class="mb-3">
+      <legend class="fs-6">Events (optional)</legend>
+
+      <div formArrayName="events">
+        @for (ev of events.controls; track ev; let i = $index) {
+          <div class="mb-2" [formGroupName]="i">
+            <div class="input-group">
+              <input
+                class="form-control"
+                formControlName="eventType"
+                maxlength="100"
+                [attr.aria-label]="'Event type ' + (i + 1)"
+              />
+              @if (ev.controls.timestamp.value) {
+                <span class="input-group-text">{{ ev.controls.timestamp.value }}</span>
+              }
+              <button class="btn btn-outline-danger" type="button" (click)="removeEvent(i)">Remove</button>
+            </div>
+            @if (ev.controls.eventType.touched && ev.controls.eventType.invalid) {
+              <div class="text-danger">Event type is required (max 100 characters, no angle brackets).</div>
+            }
+          </div>
+        }
+      </div>
+
+      <ng-template #content let-modal>
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal-basic-title">Add Event</h4>
+          <button type="button" class="btn-close" aria-label="Close" (click)="modal.dismiss('Cross click')"></button>
+        </div>
+        <div class="modal-body">
+          <form [formGroup]="eventForm" (ngSubmit)="saveEvent(modal)">
+            <div class="mb-3">
+              <label for="modalEventType" class="form-label">Event type</label>
+              <input
+                id="modalEventType"
+                type="text"
+                class="form-control"
+                formControlName="eventType"
+                maxlength="100"
+              />
+              @if (eventForm.controls.eventType.touched && eventForm.controls.eventType.invalid) {
+                <div class="text-danger">Event type is required (max 100 characters, no angle brackets).</div>
+              }
+            </div>
+
+            <div class="mb-3">
+              <label for="modalTimestamp" class="form-label">Timestamp (optional — defaults to current date & time)</label>
+              <input
+                id="modalTimestamp"
+                type="datetime-local"
+                class="form-control"
+                formControlName="timestamp"
+              />
+              @if (eventForm.controls.timestamp.touched && eventForm.controls.timestamp.errors?.['outOfRange']) {
+                <div class="text-danger">{{ eventForm.controls.timestamp.errors?.['outOfRange'] }}</div>
+              }
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="modal.dismiss('Cancel')">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="saveEvent(modal)">Save</button>
+        </div>
+      </ng-template>
+
+      <button
+        class="btn btn-primary"
+        type="button"
+        (click)="open(content)"
+        [disabled]="events.length >= maxEvents"
+      >
+        Add event
+      </button>
+
+      @if (events.length >= maxEvents) {
+        <span class="text-muted ms-2">Maximum {{ maxEvents }} events.</span>
+      }
+    </fieldset>
+
     @if (error()) {
       <div class="alert alert-danger">{{ error() }}</div>
     }
 
-    
-    
     <div class="button-group">
       <button id="addCampaignButton" type="submit" class="btn btn-primary" [disabled]="saving()">
         {{ saving() ? 'Saving...' : 'Add campaign' }}
@@ -70,8 +149,5 @@
         View all campaigns
       </a>
     </div>
-
   </form>
-  
-
 </div>

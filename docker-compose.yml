@@ -28,7 +28,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=CampaignDB;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "8080:8080"
 
   webfrontend:
     container_name: webfrontend
@@ -37,7 +37,7 @@ services:
     depends_on:
       - webapi
     ports:
-      - "${NODE_PORT:-4200}:80"
+      - "4200:80"
 
 volumes:
   mssql_data:

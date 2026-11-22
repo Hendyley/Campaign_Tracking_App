@@ -30,4 +30,10 @@ public class CampaignsController : ControllerBase
         var dto = await _campaigns.CreateAsync(req, ct);
         return CreatedAtAction(nameof(Get), new { id = dto.Id }, dto);
     }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct) =>
+        await _campaigns.DeleteAsync(id, ct) ? NoContent() : NotFound();
+
+
 }

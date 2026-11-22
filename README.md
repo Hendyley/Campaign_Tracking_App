@@ -13,13 +13,15 @@ Campaign_Tracking_App/
 - Infrastructure/      main.bicep
 - AI-Workflow/         Part 2: AI prompt, raw output, review and 3-bullet diff
 - docker-compose.yml   API + SQL Server + frontend
-- .env.example         Template for .env
+- .env.example         Template for .env 
+- .env                 for keeping secrets and configuration
 - CLAUDE.md            Part 3: rules for AI coding agents
 - .gitignore           
 - README.md            Read me file to guide user
 ```
 
-**Why this layout:** the API, frontend and infrastructure are separate top-level
+**Why this layout:** \
+the backend API (WebAPI), frontend (WebFrontend) and Infrastructure are separate top-level
 folders, so each can be built, tested and deployed independently. Docker and
 Bicep files sit at the boundary between application code and platform.
 
@@ -51,7 +53,7 @@ Bicep files sit at the boundary between application code and platform.
 git clone https://github.com/Hendyley/Campaign_Tracking_App.git
 cd Campaign_Tracking_App
  
-copy .env.example .env         # cp .env.example .env (For linux)
+copy .env.example .env         
 # Edit .env and set a strong MSSQL_SA_PASSWORD
 # Password must be 8 to 128 characters long and include characters from at least three of the four complexity categories. If the password does not meet these requirements, the container will immediately exit with a validation error.
  
@@ -60,16 +62,12 @@ docker compose ps
 # wait until mssql is "healthy" and webapi/frontend are "running"
 ```
 
-The frontend calls the API through the relative path `/api/...`. In development
-`WebFrontend/proxy.conf.json` forwards `/api` to the API; set its `target` to the
-address your API is running on (`http://localhost:8080` when using Docker). In
-Docker, nginx does the same job (see `WebFrontend/nginx.conf`).
 
 
 | Service | URL |
 |---|---|
 | SQL Server (in docker) | `localhost,1433` (user `sa`, password from `.env`) |
-| Backend API Swagger UI | http://localhost:8080/swagger (port set by `API_PORT`; use **http**, not https) |
+| Backend API Swagger UI | http://localhost:8080/swagger  |
 | Backend GET method to get all campaigns | http://localhost:8080/api/campaigns/{id} (id refer to the campaign id) or http://localhost:8080/api/campaigns (get all campaigns) |
 | Backend POST method to Create a campaign | http://localhost:8080/api/campaigns with json body {name, startDate, endDate}|
 | Frontend to Add new campaign | http://localhost:4200  or  http://localhost:4200/campaigns/new |
@@ -77,8 +75,8 @@ Docker, nginx does the same job (see `WebFrontend/nginx.conf`).
 
 
 
-The API applies EF Core migrations automatically at startup, so the database and
-tables are created on first run.
+The API applies EF Core migrations automatically at startup, so the database (CampaignDB) and empty
+table are created on first run.
  
 ```bash
 docker compose down        # stop, keep the database data
@@ -121,7 +119,7 @@ and error states. `CampaignService` wraps `HttpClient` and returns `Observable<T
  
 
 
- 
+
 ## 4 Security approach
  
 | Threat | Mitigation |
@@ -310,8 +308,31 @@ Prompt used and raw AI output are stored in `AI-Workflow/AIprompt.mhtml`
 
 
 
-<br>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<br>
+<!-- 
 ## Notes
 
 ### Running with Docker (default)
@@ -391,7 +412,8 @@ copy .env.example .env
 docker compose up --build -d
 docker compose ps
 
-
+cd WebFrontend
+ng generate component campaign-list
 
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost,1433;Database=CampaignDB;User Id=sa;Password=;TrustServerCertificate=True"
 
@@ -479,4 +501,4 @@ Because this is a time-boxed exercise, these are local shortcuts:
   and serves HTTP on localhost. In Azure, TLS terminates at App Service.
 - Migrations run at API startup for convenience. In production I would run them
   as a separate pipeline step.
-- Not included: authentication, paging, automated deployment pipeline.
+- Not included: authentication, paging, automated deployment pipeline. -->

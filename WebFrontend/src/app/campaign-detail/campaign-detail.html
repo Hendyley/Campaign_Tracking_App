@@ -3,78 +3,109 @@
   <h1>View Campaign</h1>
 </header>
 
-<div class="ViewCampaignForm">
+<div class="container">
   @switch (state()) {
     @case ('loading') { <p>Loading...</p> }
     @case ('notfound') { <p>Campaign not found.</p> }
-    @case ('error') { <p class="err">Could not load the campaign.</p> }
+    @case ('error') { <p class="text-danger">Could not load the campaign.</p> }
     @case ('ok') {
       @if (campaign(); as c) {
-
         <table class="table table-striped">
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col">Campaign name</th>
-            <th scope="col">Start Date</th>
-            <th scope="col">End Date</th>
-          </tr>
-        </thead>
-        <tbody>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Campaign name</th>
+              <th scope="col">Start date</th>
+              <th scope="col">End date</th>
+            </tr>
+          </thead>
+          <tbody>
             <tr>
               <th scope="row">{{ c.id }}</th>
               <td>{{ c.name }}</td>
               <td>{{ c.startDate | date: 'mediumDate' }}</td>
               <td>{{ c.endDate | date: 'mediumDate' }}</td>
             </tr>
-          
-        </tbody>
-      </table>
-      }
-      @else if (campaigns(); as cs) {
-        <table class="table table-striped">
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col">Campaign name</th>
-            <th scope="col">Start Date</th>
-            <th scope="col">End Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (c of cs; track c.id) {
-            <tr>
-              <th scope="row">{{ c.id }}</th>
-              <td> <a [routerLink]="['/campaigns', c.id]">{{ c.name }}</a></td>
-              <td>{{ c.startDate | date: 'mediumDate' }}</td>
-              <td>{{ c.endDate | date: 'mediumDate' }}</td>
-            </tr>
+          </tbody>
+        </table>
+
+        <h2 class="fs-5">Events ({{ c.eventCount }})</h2>
+
+        @if (actionError()) {
+          <div class="alert alert-danger">{{ actionError() }}</div>
+        }
+
+        @if (c.events.length === 0) {
+          <p>No events yet.</p>
+        } @else {
+          <ul class="list-group mb-2">
+            @for (e of c.events; track e.id) {
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ e.eventType }}, {{ formatLiteral(e.timestamp) }}</span>
+                <button class="btn btn-outline-danger btn-sm" type="button" (click)="removeEvent(e)">Delete</button>
+              </li>
+            }
+          </ul>
+          @if (c.eventCount > c.events.length) {
+            <p class="text-muted">Showing the first {{ c.events.length }} of {{ c.eventCount }} events.</p>
           }
-        </tbody>
-      </table>
-      
-      @if (cs.length === 0) {
-        <p>No campaigns yet.</p>
-      }
+        }
 
-      <nav class="d-flex align-items-center gap-3 my-3" aria-label="Campaign pages">
-        <button class="btn btn-outline-secondary" type="button"
-                [disabled]="page() === 1" (click)="loadPage(page() - 1)">Previous</button>
-        <span>Page {{ page() }}</span>
-        <button class="btn btn-outline-secondary" type="button"
-                [disabled]="!hasNext()" (click)="loadPage(page() + 1)">Next</button>
-      </nav>
+        <ng-template #eventModalContent let-modal>
+          <div class="modal-header">
+            <h4 class="modal-title" id="modal-basic-title">Add Event</h4>
+            <button type="button" class="btn-close" aria-label="Close" (click)="modal.dismiss('Cross click')"></button>
+          </div>
+          <div class="modal-body">
+            <form [formGroup]="eventForm" (ngSubmit)="saveEvent(modal)">
+              <div class="mb-3">
+                <label for="detailEventType" class="form-label">Event type</label>
+                <input
+                  id="detailEventType"
+                  type="text"
+                  class="form-control"
+                  formControlName="eventType"
+                  maxlength="100"
+                />
+                @if (eventForm.controls.eventType.touched && eventForm.controls.eventType.invalid) {
+                  <div class="text-danger">Event type is required (max 100 characters, no angle brackets).</div>
+                }
+              </div>
 
+              <div class="mb-3">
+                <label for="detailTimestamp" class="form-label">Timestamp (optional — defaults to current date & time)</label>
+                <input
+                  id="detailTimestamp"
+                  type="datetime-local"
+                  class="form-control"
+                  formControlName="timestamp"
+                />
+                @if (eventForm.controls.timestamp.touched && eventForm.controls.timestamp.errors?.['outOfRange']) {
+                  <div class="text-danger">{{ eventForm.controls.timestamp.errors?.['outOfRange'] }}</div>
+                }
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="modal.dismiss('Cancel')">Cancel</button>
+            <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="saveEvent(modal)">
+              {{ busy() ? 'Adding...' : 'Save' }}
+            </button>
+          </div>
+        </ng-template>
+
+        <div class="mb-4">
+          <button class="btn btn-primary me-2" type="button" (click)="open(eventModalContent)">
+            Add event
+          </button>
+          <button class="btn btn-outline-danger" type="button" (click)="removeCampaign()">Delete campaign</button>
+        </div>
       }
     }
   }
 
-  <div class="button-group">
-    <a id="createCampaignLink" class="btn btn-primary" routerLink="/campaigns/new">
-      Create another campaign
-    </a>
-    <a id="viewAllCampaign" class="btn btn-primary" routerLink="/campaigns/all">
-      View all campaigns
-    </a>
+  <div class="button-group mt-3">
+    <a id="createCampaignLink" class="btn btn-primary" routerLink="/campaigns/new">Create another campaign</a>
+    <a id="viewAllCampaign" class="btn btn-primary ms-2" routerLink="/campaigns/all">View all campaigns</a>
   </div>
 </div>

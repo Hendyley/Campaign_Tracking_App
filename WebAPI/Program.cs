@@ -11,6 +11,7 @@ builder.Services.AddDbContext<CampaignDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<ICampaignService, CampaignService>();
+builder.Services.AddScoped<IEventService, EventService>();
 
 builder.Services.AddCors(o => o.AddPolicy("web", p =>
     p.WithOrigins("http://localhost:4200", "http://localhost:3000").AllowAnyHeader().AllowAnyMethod()));
