@@ -52,6 +52,19 @@
           }
         </tbody>
       </table>
+      
+      @if (cs.length === 0) {
+        <p>No campaigns yet.</p>
+      }
+
+      <nav class="d-flex align-items-center gap-3 my-3" aria-label="Campaign pages">
+        <button class="btn btn-outline-secondary" type="button"
+                [disabled]="page() === 1" (click)="loadPage(page() - 1)">Previous</button>
+        <span>Page {{ page() }}</span>
+        <button class="btn btn-outline-secondary" type="button"
+                [disabled]="!hasNext()" (click)="loadPage(page() + 1)">Next</button>
+      </nav>
+
       }
     }
   }

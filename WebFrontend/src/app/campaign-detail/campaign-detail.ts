@@ -19,30 +19,33 @@ export class CampaignDetail implements OnInit {
   campaigns = signal<Campaign[] | null>(null);
   state = signal<'loading' | 'ok' | 'notfound' | 'error'>('loading');
 
+  readonly pageSize = 20;
+  page = signal(1);
+  hasNext = signal(false);
+
   ngOnInit(): void {
-    if (this.route.snapshot.paramMap.get('id') === null)
-    {
-      this.api.getAll().subscribe({
-        next: (c) => {
-          this.campaigns.set(c);
-          this.state.set('ok');
-        },
-      error: (e: HttpErrorResponse) => this.state.set(e.status === 404 ? 'notfound' : 'error'),
+    const idParam = this.route.snapshot.paramMap.get('id');
+    if (idParam === null) {
+      this.loadPage(1);
+    } else {
+      this.api.get(Number(idParam)).subscribe({
+        next: (c) => { this.campaign.set(c); this.state.set('ok'); },
+        error: (e: HttpErrorResponse) => this.state.set(e.status === 404 ? 'notfound' : 'error'),
       });
     }
-    else 
-    {
-      const id = Number(this.route.snapshot.paramMap.get('id'));
-      this.api.get(id).subscribe({
-        next: (c) => {
-          this.campaign.set(c);
-          this.state.set('ok');
-        },
+  }
+
+  loadPage(page: number): void {
+    this.state.set('loading');
+    // Ask for one extra row: if it comes back, a next page exists.
+    this.api.getAll(page, this.pageSize + 1).subscribe({
+      next: (rows) => {
+        this.hasNext.set(rows.length > this.pageSize);
+        this.campaigns.set(rows.slice(0, this.pageSize));
+        this.page.set(page);
+        this.state.set('ok');
+      },
       error: (e: HttpErrorResponse) => this.state.set(e.status === 404 ? 'notfound' : 'error'),
     });
-
-    }
-
-    
   }
 }

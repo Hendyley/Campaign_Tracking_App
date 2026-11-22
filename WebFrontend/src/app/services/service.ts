@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -13,8 +13,9 @@ export class CampaignService {
     return this.http.get<Campaign>(`${this.base}/${id}`);
   }
 
-  getAll(): Observable<Campaign[]> {
-    return this.http.get<Campaign[]>(this.base);
+  getAll(page = 1, pageSize = 20): Observable<Campaign[]> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http.get<Campaign[]>(this.base, { params });
   }
 
   create(body: CreateCampaign): Observable<Campaign> {
