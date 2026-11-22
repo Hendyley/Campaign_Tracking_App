@@ -7,6 +7,7 @@ param appName string
 @description('Azure region. Defaults to the resource group location.')
 param location string = resourceGroup().location
 
+@description('Database connection string.')
 @secure()
 param sqlConnectionString string
 
