@@ -57,7 +57,7 @@
     </div>
 
     <fieldset class="mb-3">
-      <legend class="fs-6">Events (optional)</legend>
+      <label>Events (optional)</label>
 
       <div formArrayName="events">
         @for (ev of events.controls; track ev; let i = $index) {
@@ -70,7 +70,8 @@
                 [attr.aria-label]="'Event type ' + (i + 1)"
               />
               @if (ev.controls.timestamp.value) {
-                <span class="input-group-text">{{ ev.controls.timestamp.value }}</span>
+                <span class="input-group-text">{{ formatLiteral(ev.controls.timestamp.value) }}</span>
+                
               }
               <button class="btn btn-outline-danger" type="button" (click)="removeEvent(i)">Remove</button>
             </div>
@@ -119,7 +120,7 @@
 
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="modal.dismiss('Cancel')">Cancel</button>
-          <button type="button" class="btn btn-primary" (click)="saveEvent(modal)">Save</button>
+          <button type="button" class="btn btn-primary" (click)="saveEvent(modal)">Add Event</button>
         </div>
       </ng-template>
 

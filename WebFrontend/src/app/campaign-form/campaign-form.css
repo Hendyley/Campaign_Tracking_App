@@ -1,11 +1,11 @@
 :host {
   display: block;
-  background-color: black;
+  background-color: #121417;
   color: white;
   min-height: 100vh;
   padding: 20px;
   font-family: Arial, sans-serif;
-  font-size: 30px;
+  font-size: 20px;
 }
 
 
@@ -27,7 +27,7 @@ header > h1 {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: black;
+    background-color: #121417;
 }
 
 .form-control {
@@ -46,15 +46,29 @@ header > h1 {
   align-items: center;
   gap: 12px;
   margin-top: 16px;
+  justify-content: center;
 }
 
 #addCampaignButton, #viewAllCampaign {
-    background-color: #007bff;
+    background-color: #3b82f6;
     color: white;
     border: none;
     padding: 10px 20px;
-    font-size: 25px;
+    font-size: 20px;
     margin-top: 20px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    align-items: center;
+    flex-direction: row;
+    display: flex;
+}
+
+.event-modal-dark .modal-content {
+  background-color: #000;
+  color: #fff;
+}
+
+.event-modal-dark .modal-header,
+.event-modal-dark .modal-footer {
+  border-color: #333;
 }

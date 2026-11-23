@@ -29,7 +29,7 @@
           </tbody>
         </table>
 
-        <h2 class="fs-5">Events ({{ c.eventCount }})</h2>
+        <label >Events ({{ c.eventCount }})</label>
 
         @if (actionError()) {
           <div class="alert alert-danger">{{ actionError() }}</div>
@@ -89,7 +89,7 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" (click)="modal.dismiss('Cancel')">Cancel</button>
             <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="saveEvent(modal)">
-              {{ busy() ? 'Adding...' : 'Save' }}
+              {{ busy() ? 'Adding...' : 'Add Event' }}
             </button>
           </div>
         </ng-template>
@@ -104,7 +104,7 @@
     }
   }
 
-  <div class="button-group mt-3">
+  <div class="button-group">
     <a id="createCampaignLink" class="btn btn-primary" routerLink="/campaigns/new">Create another campaign</a>
     <a id="viewAllCampaign" class="btn btn-primary ms-2" routerLink="/campaigns/all">View all campaigns</a>
   </div>

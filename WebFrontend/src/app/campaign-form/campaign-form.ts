@@ -27,16 +27,38 @@ function endOfDay(d: NgbDateStruct): Date {
   return new Date(d.year, d.month - 1, d.day, 23, 59, 59, 999);
 }
 
-function parseDateTimeLocal(value: string): Date | null {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
 function dateRange(group: AbstractControl): ValidationErrors | null {
   const start = group.get('startDate')?.value as NgbDateStruct | null;
   const end = group.get('endDate')?.value as NgbDateStruct | null;
   return start && end && toIsoDate(end) < toIsoDate(start) ? { dateRange: true } : null;
+}
+
+function parseDateTimeLocal(value: string): Date | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+  if (match) {
+    const [, y, m, d, hh, mm, ss] = match;
+    const date = new Date(
+      Number(y),
+      Number(m) - 1,
+      Number(d),
+      Number(hh),
+      Number(mm),
+      ss ? Number(ss) : 0,
+      0,
+    );
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const fallback = new Date(value);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function toLocalIsoNoZone(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
 }
 
 @Component({
@@ -106,7 +128,7 @@ export class CampaignForm {
     const end = this.form.controls.endDate.value;
 
     if (!start || !end) {
-      return { error: null, resolvedIso: chosenDate!.toISOString() };
+      return { error: null, resolvedIso: toLocalIsoNoZone(chosenDate!) };
     }
 
     const minTime = startOfDay(start);
@@ -128,12 +150,12 @@ export class CampaignForm {
       };
     }
 
-    return { error: null, resolvedIso: chosenDate!.toISOString() };
+    return { error: null, resolvedIso: toLocalIsoNoZone(chosenDate!) };
   }
 
   open(content: TemplateRef<unknown>): void {
     this.eventForm.reset({ eventType: '', timestamp: '' });
-    this.eventmodal.open(content, { ariaLabelledBy: 'modal-basic-title' }).result.then(
+    this.eventmodal.open(content, { ariaLabelledBy: 'modal-basic-title', windowClass: 'event-modal-dark' }).result.then(
       () => {},
       () => {
         this.eventForm.reset({ eventType: '', timestamp: '' });
@@ -204,5 +226,15 @@ export class CampaignForm {
           this.saving.set(false);
         },
       });
+  }
+  
+  formatLiteral(ts: string): string {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(ts);
+    if (!m) return ts;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const h24 = Number(m[4]);
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${months[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}, ${h12}:${m[5]} ${ampm}`;
   }
 }

@@ -135,7 +135,7 @@ export class CampaignDetail implements OnInit {
 
   open(content: TemplateRef<unknown>): void {
     this.eventForm.reset({ eventType: '', timestamp: '' });
-    this.eventmodal.open(content, { ariaLabelledBy: 'modal-basic-title' }).result.then(
+    this.eventmodal.open(content, { ariaLabelledBy: 'modal-basic-title', windowClass: 'event-modal-dark' }).result.then(
       () => {},
       () => {
         this.eventForm.reset({ eventType: '', timestamp: '' });

@@ -13,14 +13,13 @@ Campaign_Tracking_App/
 - Infrastructure/      main.bicep
 - AI-Workflow/         Part 2: AI prompt, raw output, review and 3-bullet diff
 - docker-compose.yml   API + SQL Server + frontend
-- .env.example         Template for .env 
-- .env                 for keeping secrets and configuration
+- .env.example         Template for .env configuration
 - CLAUDE.md            Part 3: rules for AI coding agents
 - .gitignore           
 - README.md            Read me file to guide user
 ```
 
-**Why this layout:** \
+**Note:** \
 the backend API (WebAPI), frontend (WebFrontend) and Infrastructure are separate top-level
 folders, so each can be built, tested and deployed independently. Docker and
 Bicep files sit at the boundary between application code and platform.
@@ -29,11 +28,14 @@ Bicep files sit at the boundary between application code and platform.
  
 | Item | Location |
 |---|---|
-| GET and POST endpoints | `WebAPI/Controllers/CampaignController.cs` |
+| Campaign endpoints | `WebAPI/Controllers/CampaignsController.cs` |
+| Event endpoints | `WebAPI/Controllers/EventsController.cs` |
+| Business and data access logic | `WebAPI/Services/` (`CampaignService`, `EventService` and their interfaces) |
 | Validation (DTOs) | `WebAPI/Dtos/CampaignDtos.cs` |
 | DbContext and 1-to-many configuration | `WebAPI/Data/CampaignDbContext.cs` |
 | EF Core migrations | `WebAPI/Migrations/` |
-| Angular campaign form | `WebFrontend/src/app/campaign-form/` |
+| Angular create form | `WebFrontend/src/app/campaign-form/` |
+| Angular campaign list | `WebFrontend/src/app/campaign-list/` |
 | Angular campaign detail | `WebFrontend/src/app/campaign-detail/` |
 | Angular service (`HttpClient`, Observables) | `WebFrontend/src/app/services/service.ts` |
 | Angular routing | `WebFrontend/src/app/app.routes.ts` |
@@ -44,9 +46,11 @@ Bicep files sit at the boundary between application code and platform.
  
 ---
 
- ## 2 Quick start for setup with docker
- 
-**Prerequisite:** Docker Desktop. Nothing else needs to be installed.
+## 2 Quick start for setup with docker
+
+### 2.1 setup
+
+**Prerequisite:** Download and install Docker Desktop. Nothing else needs to be installed.
  https://docs.docker.com/desktop/setup/install/windows-install/
 
 ```bash
@@ -63,15 +67,11 @@ docker compose ps
 ```
 
 
-
 | Service | URL |
 |---|---|
 | SQL Server (in docker) | `localhost,1433` (user `sa`, password from `.env`) |
-| Backend API Swagger UI | http://localhost:8080/swagger  |
-| Backend GET method to get all campaigns | http://localhost:8080/api/campaigns/{id} (id refer to the campaign id) or http://localhost:8080/api/campaigns (get all campaigns) |
-| Backend POST method to Create a campaign | http://localhost:8080/api/campaigns with json body {name, startDate, endDate}|
-| Frontend to Add new campaign | http://localhost:4200  or  http://localhost:4200/campaigns/new |
-| Frontend to view campaign | http://localhost:4200/campaigns/all  or  http://localhost:4200/campaigns/{id} (id refer to the campaign id) |
+| Backend API Swagger UI (WebAPI) | http://localhost:8080/swagger  |
+| Frontend (WebFrontend) | http://localhost:4200  or  http://localhost:4200/campaigns/new |
 
 
 
@@ -83,6 +83,27 @@ docker compose down        # stop, keep the database data
 docker compose down -v     # stop and delete the database volume (fresh start)
 ```
   
+### 2.2 Using the app
+
+### Frontend pages
+ 
+| Page | What it does |
+|---|---|
+| `/campaigns/new` (also `/`) | Create a campaign. Events can be added in a pop-up before saving (optional, up to 50). |
+| `/campaigns/all` | Paged list of campaigns (20 per page, Previous and Next), with event counts and a delete button. |
+| `/campaigns/{id}` | One campaign with its events. Add an event (pop-up), delete an event, delete the campaign. |
+ 
+### API
+ 
+| Method | Route | Description | Status codes |
+|---|---|---|---|
+| GET | `/api/campaigns?page=1&pageSize=20` | Paged campaign summaries (`id`, `name`, dates, `eventCount`). `pageSize` is capped at 100. | 200 |
+| GET | `/api/campaigns/{id}` | Campaign with its events (ordered by time, first 100) and the total `eventCount` | 200, 404 |
+| POST | `/api/campaigns` | Create a campaign. An optional `events` array (max 50) is saved in the same transaction. | 201, 400 |
+| DELETE | `/api/campaigns/{id}` | Delete a campaign and its events | 204, 404 |
+| POST | `/api/events` | Create an event. `campaignId` is required in the body. | 201, 400 |
+| GET | `/api/events/{id}` | One event | 200, 404 |
+| DELETE | `/api/events/{id}` | Delete an event | 204, 404 |
 
 ## 3 Design decisions
  
@@ -113,11 +134,41 @@ and `Event`.
  
 **Frontend.** Standalone Angular components. The form is a reactive form with a
 cross-field validator for the date rule. The detail page handles loading, not-found
-and error states. `CampaignService` wraps `HttpClient` and returns `Observable<T>`.
+and error states. `CampaignService` wraps `HttpClient` and returns `Observable<T>`. Events are
+added in an ng-bootstrap pop-up, both when creating a campaign and on the detail page.
+ 
+**Thin controllers, services behind interfaces.** Controllers validate HTTP input, call
+`ICampaignService` or `IEventService` and map the result to a status code. Data access lives in
+the services, and every action and service method takes a `CancellationToken`.
+ 
+**Events.** `campaignId` is sent in the request body, so the frontend does not build URLs. A
+missing or unknown `campaignId` returns `400` with an error on that field, because it is a
+validation problem and not a missing route. Events created together with a campaign use a DTO
+without `CampaignId`, so they cannot point at another campaign.
+ 
+**Deletes.** Each delete runs a single `ExecuteDeleteAsync` statement and loads nothing. The
+database's `ON DELETE CASCADE` removes a campaign's events. These are hard deletes, and a
+missing resource returns `404`.
+ 
+**Limits and why they differ.**
+ 
+| Limit | Value | What it protects |
+|---|---|---|
+| Page size for the campaign list | 100 | Response size and query cost of a list request |
+| Events accepted when creating a campaign | 50 | The size of a single `POST` and its transaction. It is not a cap on data: more events can be added afterwards with `POST /api/events`. |
+| Events returned by the campaign detail | 100 | Response size. The response also carries the true `eventCount`, and the page shows "first 100 of N" when more exist. |
+ 
+**Dates.** Campaign dates are whole days and the end date is inclusive. The form sends the start
+date at `00:00:00` and the end date at `23:59:59`, so a one-day campaign is allowed while the API
+keeps the strict rule that `EndDate` must be after `StartDate`. A caller that sends equal
+timestamps gets `400`.
+ 
+**Event timestamps.** The frontend stores the date and time entered (wall-clock, no time zone) and
+displays it as stored, so there is no time zone shift. Events created through the API without a
+timestamp default to the server's UTC time.
  
 ---
  
-
 
 
 ## 4 Security approach
@@ -125,24 +176,41 @@ and error states. `CampaignService` wraps `HttpClient` and returns `Observable<T
 | Threat | Mitigation |
 |---|---|
 | **SQL injection** | All data access goes through EF Core/LINQ, which sends parameterized SQL. There is no raw SQL and no string concatenation. |
-| **XSS** | `Name` is length-limited (200) and rejects `<` and `>` on the server (and in the form). On output, Angular escapes template bindings (`{{ }}`), and `innerHTML` / `bypassSecurityTrust*` are not used. Output encoding is the primary defence; input rejection is defence in depth. |
-| **Invalid input** | Data annotations (`[Required]`, `[StringLength]`, `[RegularExpression]`) plus `IValidatableObject` for `EndDate > StartDate`. `[ApiController]` returns `400` with details automatically. |
-| **Over-posting** | The request DTO exposes only `Name`, `StartDate` and `EndDate`. |
+| **XSS** | `Name` and `EventType` are length-limited and reject `<` and `>` on the server (and in the forms). On output, Angular escapes template bindings (`{{ }}`), and `innerHTML` / `bypassSecurityTrust*` are not used. Output encoding is the primary defence; input rejection is defence in depth. |
+| **Invalid input** | Data annotations (`[Required]`, `[StringLength]`, `[RegularExpression]`, `[Range]`, `[MaxLength]`) plus `IValidatableObject` for `EndDate > StartDate`. `[ApiController]` returns `400` with details automatically, including for each event inside a campaign. |
+| **Over-posting** | Request DTOs expose only the fields a client may set. |
+| **Referential integrity** | An event for a missing campaign returns `400`. The foreign key is the final guard if the campaign is deleted at the same moment. |
+| **Delete requests** | The route only accepts an integer id (`{id:int}`), the delete runs as one parameterized statement, a missing id returns `404`, and there is no bulk delete endpoint. The frontend asks for confirmation before deleting. |
+| **Unbounded requests** | `pageSize` is capped at 100, a campaign accepts at most 50 events on creation, and the detail view returns at most 100. |
 | **Secrets** | Nothing sensitive is committed. `.env` is gitignored (`.env.example` holds placeholders), local development uses `dotnet user-secrets`, and the Bicep connection string is a `@secure()` parameter. |
 | **Transport** | The App Service is configured `httpsOnly` with TLS 1.2 minimum. |
-
+ 
+**Known gap: there is no authentication or authorization.** Anyone who can reach the API can create
+or delete data, and the confirmation dialog is a convenience, not a control. This is out of scope
+for the exercise. Production would add authentication (for example Microsoft Entra ID with JWT
+bearer tokens), role checks on the delete endpoints, and soft delete or an audit trail. CORS only
+restricts browsers, so it is not an access control.
+ 
 ### Test results
  
-| Request (`POST /api/campaigns`) | Result |
+| Request | Result |
 |---|---|
-| Valid campaign | `201 Created` |
-| Empty name | `400` |
-| Name `<script>alert(1)</script>` | `400` |
-| Name longer than 200 characters | `400` |
-| `endDate` before or equal to `startDate` | `400` |
-| Name `'; DROP TABLE Campaigns; --` | `201`; stored as plain text, table unaffected (parameterized) |
+| `POST /api/campaigns` valid | `201 Created` |
+| `POST /api/campaigns` valid, with 2 events | `201`, `eventCount: 2` |
+| `POST /api/campaigns` empty name | `400` |
+| `POST /api/campaigns` name `<script>alert(1)</script>` | `400` |
+| `POST /api/campaigns` name longer than 200 characters | `400` |
+| `POST /api/campaigns` `endDate` before or equal to `startDate` (same timestamp) | `400` |
+| One-day campaign created from the form (end date sent as `23:59:59`) | `201` |
+| `POST /api/campaigns` event type `<b>x</b>` | `400`, and no campaign is created |
+| `POST /api/campaigns` name `'; DROP TABLE Campaigns; --` | `201`; stored as plain text, table unaffected (parameterized) |
+| `POST /api/events` valid | `201` |
+| `POST /api/events` without `campaignId` | `400` |
+| `POST /api/events` with a `campaignId` that does not exist | `400` |
 | `GET /api/campaigns/999` | `404` |
-
+| `DELETE /api/events/{id}` twice | `204`, then `404` |
+| `DELETE /api/campaigns/{id}` | `204`, and its events return `404` |
+| `DELETE /api/campaigns/abc` (non-integer id) | `404` |
 
 
 
@@ -263,23 +331,27 @@ The campaign endpoints use the same pattern, so the fix is applied in real code 
 
 | Part 2 fix | In this repo |
 |---|---|
-| `Select` projection, no in-memory loop | `CampaignService` projects to `CampaignDto` and `EventDto` with a shared `ToDto` expression, so events load in one query (no N+1) |
-| `AsNoTracking()` | Used in `GetAsync` and `GetPageAsync` |
+| `Select` projection, no in-memory loop | `CampaignService` projects to DTOs with `Select`, and `eventCount` is a SQL `COUNT` |
+| `AsNoTracking()` | Used on every read in `CampaignService` and `EventService` |
 | Stable `OrderBy`, `Skip`/`Take`, clamped inputs | `GetPageAsync` orders by `Id`, pages, and clamps `page` and `pageSize` (default 20, maximum 100) |
-| DTOs, not entities | `CampaignDto` and `EventDto` for output, `CreateCampaignRequest` for input |
+| Nothing loaded that is not needed | Deletes use `ExecuteDeleteAsync`, and the campaign check for a new event is an `AnyAsync` |
+| DTOs, not entities | `CampaignDto`, `CampaignSummaryDto` and `EventDto` for output, `CreateCampaignRequest` and `CreateEventRequest` for input |
 | `CancellationToken` | Every controller action and service method takes `ct` |
-| Service behind an interface | `ICampaignService` / `CampaignService`, registered with `AddScoped` |
-| Thin controller | `CampaignsController` only calls the service and returns `Ok`, `NotFound` or `CreatedAtAction` |
+| Service behind an interface | `ICampaignService` and `IEventService`, registered with `AddScoped` |
+| Thin controller | Controllers only call a service and return `Ok`, `NotFound`, `NoContent` or `CreatedAtAction` |
 
 ---
 
 
 ### 6.1.3 Provide the prompt you used, the raw AI output, and a 3-bullet diff explaining what you changed and why.
 ---
-Prompt used and raw AI output are stored in `AI-Workflow/AIprompt.mhtml`
-3-bullet diff is stored in `AI-Workflow/3-bullet-diff.md`
+- Prompt used and raw AI output are stored in `AI-Workflow/AIprompt.mhtml`
+- 3-bullet diff is stored in `AI-Workflow/3-bullet-diff.md`
 
-3-bullet diff explaining what you changed and why.
+
+**3-bullet diff** against the AI's suggested code. The AI's version already moved the sum into SQL,
+removed tracking, returned a DTO and added a `CancellationToken`. These are my changes on top of it:
+
 1. Enforced the paging limits inside the method 
 - What changed: Added line
   ```
@@ -288,9 +360,9 @@ Prompt used and raw AI output are stored in `AI-Workflow/AIprompt.mhtml`
   ```
 - Why: The AI’s code has no limits, and its checklist only says to cap pageSize at the caller or service level, which leaves it unenforced. Without the clamp, a negative page gives a negative Skip, pageSize = 0 returns nothing, a huge pageSize loads the whole table (the same unbounded problem as issue 2), and a very large page overflows (page - 1) * pageSize.
 
-2. Wrapped the method in IOrderService and OrderService (critical: architecture)
+2. Wrapped the method in IOrderService and OrderService
 - What changed: The AI’s bare method that reads _context became a service class behind an interface, registered with AddScoped.
-- Why: The AI flagged “mixed responsibilities” (issue 9) but its fix is still a loose method with no home. The interface lets controllers depend on an abstraction and be tested without a database. It matches ICampaignService in this repo, and the DbContext lifetime follows the service.
+- Why: The AI flagged “mixed responsibilities” but its fix is still a loose method with no home. The interface lets controllers depend on an abstraction and be tested without a database. It matches ICampaignService in this repo, and the DbContext lifetime follows the service.
 
 3. Remove `OrderDate` 
 - What changed: Remove `OrderDate` reference
@@ -301,101 +373,86 @@ Prompt used and raw AI output are stored in `AI-Workflow/AIprompt.mhtml`
 
 `CLAUDE.md` defines the rules AI coding agents must follow in this repo.
 
+
+1. Keep secrets and configuration out of the code (`.env`, user-secrets, `@secure()` Bicep
+   parameters, service names inside Docker Compose).
+2. Backend: thin controllers, data access in services behind interfaces.
+3. Backend: reads use projections to DTOs, `AsNoTracking`, ordered and clamped paging, validation
+   at the boundary, no SQL built from strings.
+4. Frontend: strict, typed Angular, an `HttpClient` service, no `innerHTML`.
+5. Do not invent APIs, and do not claim work that was not run.
+
+
 ---
 <br>
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<br>
-<!-- 
-## Notes
-
-### Running with Docker (default)
-
-Everything above uses Docker Compose. The connection string comes from the
-`ConnectionStrings__DefaultConnection` environment variable in `docker-compose.yml`
-(built from `MSSQL_SA_PASSWORD` in `.env`), and the API applies the EF Core
-migrations automatically at startup. No .NET, Node or EF tools need to be installed.
-
-### Running manually (without Docker for the API and frontend)
-
-**Prerequisites:** .NET 10 SDK, Node.js 20+ (LTS), Angular CLI, and a SQL Server.
-The simplest SQL Server is the one from Docker Compose:
-
+## 7 Notes
+ 
+### Running without Docker for the API and frontend
+ 
+**Prerequisites:** .NET 10 SDK, Node.js 20+ (LTS), Angular CLI, and a SQL Server. The simplest SQL
+Server is the one from Docker Compose.
+ 
 ```bash
 # 1. Start only the database (or use your own SQL Server)
 docker compose up -d mssql
-
+ 
 # 2. Store the connection string in user-secrets (kept outside the repo)
 cd WebAPI
 dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost,1433;Database=CampaignDB;User Id=sa;Password=<MSSQL_SA_PASSWORD from .env>;TrustServerCertificate=True"
-
+ 
 # 3. Install the EF Core CLI tool (once; use "update" instead if already installed)
 dotnet tool install --global dotnet-ef
-
+ 
 # 4. Create the database and tables (creates CampaignDB if it is missing)
 dotnet ef database update
-
-# 5. Run the API (Swagger URL is printed in the console)
+ 
+# 5. Run the API (the Swagger URL is printed in the console)
 dotnet run
 ```
-
+ 
 ```bash
 # 6. Run the frontend in another terminal
 cd WebFrontend
 npm install
-ng serve --port 3000                      # http://localhost:3000
+ng serve  --port 3000                    # http://localhost:3000 (Can choose port)
 ```
-
-The migration `InitialCreate` is already committed in `WebAPI/Migrations/`.
-Only create a new migration when the model changes:
-
+ 
+The API base URL used by the frontend is set in `WebFrontend/src/environments/environment.ts`, and
+the API's CORS policy allows `http://localhost:4200` and `http://localhost:3000`. The migrations are
+already committed in `WebAPI/Migrations/`. Create a new one only when the model changes:
+ 
 ```bash
 dotnet ef migrations add <MigrationName>
 dotnet ef database update
 ```
-
-When running the API with `dotnet run`, set the `target` in
-`WebFrontend/proxy.conf.json` to the address the API prints in the console, because
-the default points to the Docker port (`http://localhost:8080`).
-
-### This is a time-boxed exercise, so some local conveniences are deliberate:
  
-- The `sa` account is used for SQL Server. Production should use a least-privilege
-  login, or Azure SQL with a Managed Identity and Key Vault references.
+### Trade-offs and production notes
+ 
+This is a time-boxed exercise, so some local conveniences are deliberate:
+ 
+- The `sa` account is used for SQL Server. Production should use a least-privilege login, or Azure
+  SQL with a Managed Identity and Key Vault references.
 - `TrustServerCertificate=True` is for the local container only.
-- The Docker setup serves plain HTTP on localhost and runs the API in the
-  `Development` environment (Swagger on). In Azure, TLS terminates at App Service.
-- Migrations run at API startup for convenience. In production they would be a
-  separate pipeline step.
-- Not included: authentication, paging on list endpoints, an endpoint to create
-  events, automated tests, and a CI/CD pipeline.
+- The Docker setup serves plain HTTP on localhost and runs the API in the `Development` environment
+  (Swagger on). In Azure, TLS terminates at App Service.
+- Migrations run at API startup for convenience. In production they would be a separate pipeline step.
+- The frontend asks for confirmation with `window.confirm` before deleting. A modal would be nicer in
+  production.
+  
+### Not included
+ 
+- Authentication and authorization (anyone who can reach the API can create or delete data)
+- Automated tests (the service interfaces are there so controllers can be tested without a database)
+- A CI/CD pipeline, and a database in the Bicep template
+- A total count for the campaign list, and paging of the events inside one campaign (the detail page
+  shows the first 100 and the total)
+- Server-side enforcement that an event's timestamp falls within its campaign's dates. This rule is
+  checked in the frontend forms only.
+- Soft delete or an audit trail (deletes are permanent)
+ 
 
 
 
@@ -404,101 +461,18 @@ the default points to the Docker port (`http://localhost:8080`).
 
 
 
-cd E:\Project\Git
-git clone https://github.com/Hendyley/Campaign_Tracking_App.git fresh-test
-cd fresh-test
-copy .env.example .env
-# edit .env, then:
-docker compose up --build -d
-docker compose ps
-
-cd WebFrontend
-ng generate component campaign-list
-
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost,1433;Database=CampaignDB;User Id=sa;Password=;TrustServerCertificate=True"
-
-dotnet tool install --global dotnet-ef
-dotnet tool update --global dotnet-ef
-dotnet ef migrations add InitialCreate  
-dotnet ef database update   => Create DB if Missing
-
-Angular CLI
-npm install -g @angular/cli
-ng version
-ng new WebFrontend --routing --style=css --skip-git
-ng generate environments
-ng generate component campaign-form
-ng generate component campaign-detail
-
-
-npm install
-ng serve
-
-
-winget install -e --id Microsoft.Bicep
-
-https://localhost:7194/swagger
 
 
 
-## Run locally without Docker for the API
 
-**Prerequisites:** .NET 10 SDK, Docker (for the database), Node 20+ (frontend).
 
-```bash
-# 1. Start only the database
-docker compose up -d mssql
 
-# 2. Store the connection string in user-secrets (kept outside the repo)
-cd WebAPI
-dotnet user-secrets init
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
-  "Server=localhost,1433;Database=CampaignDB;User Id=sa;Password=<your .env password>;TrustServerCertificate=True"
 
-# 3. Apply migrations and run
-dotnet tool install --global dotnet-ef
-dotnet ef database update
-dotnet run
-```
 
-### Frontend
 
-```bash
-cd WebFrontend
-npm install
-ng serve
-```
 
-Open http://localhost:4200. The API URL is configured in
-`src/environments/environment.ts`. CORS allows `http://localhost:4200`.
 
-## Infrastructure (Azure Bicep)
 
-`Infrastructure/main.bicep` deploys an App Service Plan, an App Service (HTTPS only,
-TLS 1.2, FTPS disabled) and an application setting for the database
-connection string, passed in as a `@secure()` parameter.
 
-```bash
-az bicep build --file Infrastructure/main.bicep
-az deployment group what-if -g <resource-group> -f Infrastructure/main.bicep \
-  -p appName=<unique-name> sqlConnectionString="<value>"
-```
 
-## AI workflow (Parts 2 and 3)
 
-- `ai-workflow/` contains the prompt, the raw AI output, my review and the
-  3-bullet diff for the `GetOrdersWithTotalAsync` snippet.
-- `CLAUDE.md` defines the rules for AI agents working in this repo.
-
-## Trade-offs and production notes
-
-Because this is a time-boxed exercise, these are local shortcuts:
-
-- The `sa` account is used for SQL Server. Production should use a
-  least-privilege login or Azure SQL with a Managed Identity.
-- `TrustServerCertificate=True` is for the local container only.
-- The Docker setup runs with `ASPNETCORE_ENVIRONMENT=Development` (Swagger on)
-  and serves HTTP on localhost. In Azure, TLS terminates at App Service.
-- Migrations run at API startup for convenience. In production I would run them
-  as a separate pipeline step.
-- Not included: authentication, paging, automated deployment pipeline. -->
